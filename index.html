@@ -1,0 +1,614 @@
+<title>Kuis Input, Proses, Output</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@500;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: satu kolom seperti layar kuis kelas; strip alur Input → Proses → Output jadi penanda kategori tiap soal. */
+:root {
+  --bg: #EDF1F7;
+  --surface: #FFFFFF;
+  --ink: #15203A;
+  --muted: #56637E;
+  --line: #D3DAE6;
+  --key: #FFC23D;        /* warna tuts/keycap, aksen utama */
+  --key-ink: #2B1D00;
+  --good: #13855E;
+  --good-soft: #DDF3EA;
+  --bad: #C8323F;
+  --bad-soft: #FBE3E5;
+  --t1: #D2394A; --t2: #2360C8; --t3: #157F5B; --t4: #B85A12;
+  --shadow: 0 3px 0 rgba(21,32,58,.14);
+  --f-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1627; --surface: #18223A; --ink: #E7ECF6; --muted: #9DA9C3; --line: #2B3756;
+    --key: #FFC23D; --key-ink: #2B1D00;
+    --good: #3CC793; --good-soft: #143A30; --bad: #FF6B78; --bad-soft: #3D1A22;
+    --t1: #C8344A; --t2: #2C63C4; --t3: #12795A; --t4: #A9530F;
+    --shadow: 0 3px 0 rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1627; --surface: #18223A; --ink: #E7ECF6; --muted: #9DA9C3; --line: #2B3756;
+  --key: #FFC23D; --key-ink: #2B1D00;
+  --good: #3CC793; --good-soft: #143A30; --bad: #FF6B78; --bad-soft: #3D1A22;
+  --t1: #C8344A; --t2: #2C63C4; --t3: #12795A; --t4: #A9530F;
+  --shadow: 0 3px 0 rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--key); outline-offset: 2px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Tombol bergaya tuts keyboard */
+.btn {
+  border: 2px solid var(--ink); background: var(--key); color: var(--key-ink);
+  font-weight: 800; font-size: 17px; padding: 12px 22px; border-radius: 10px;
+  box-shadow: 0 4px 0 var(--ink); transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.btn.ghost { background: var(--surface); color: var(--ink); }
+kbd {
+  font-family: var(--f-mono); font-size: 12px; border: 1px solid currentColor; border-bottom-width: 3px;
+  border-radius: 5px; padding: 0 5px; opacity: .8;
+}
+
+/* Strip alur sistem komputer */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 8px; }
+.stage {
+  background: var(--surface); border: 2px solid var(--line); border-radius: 12px; padding: 12px;
+  display: grid; gap: 4px; align-content: start; min-width: 0; transition: border-color .2s, background .2s, opacity .2s;
+}
+.stage b { font-family: var(--f-display); font-size: 18px; }
+.stage small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.arrow { align-self: center; font-family: var(--f-mono); color: var(--muted); font-weight: 700; }
+.store { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.store b { font-size: 16px; }
+.flow.compact .stage { padding: 6px 10px; }
+.flow.compact .stage small { display: none; }
+.flow.compact .stage b { font-size: 14px; }
+.flow.compact .store b { font-size: 13px; }
+.flow.compact .stage { opacity: .45; }
+.flow.compact .stage.on { opacity: 1; border-color: var(--key); background: color-mix(in srgb, var(--key) 22%, var(--surface)); }
+
+/* Layar mulai */
+.hero { display: grid; gap: 10px; }
+.hero h1 { font-size: clamp(32px, 7vw, 52px); font-weight: 800; letter-spacing: -.01em; }
+.hero h1 em { font-style: normal; background: var(--key); color: var(--key-ink); padding: 0 .18em; border-radius: 8px; }
+.hero p { color: var(--muted); max-width: 60ch; }
+.panel { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 16px; }
+.field { display: grid; gap: 6px; }
+.field label, .field legend { font-weight: 800; font-size: 14px; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+input[type="text"] {
+  font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+input[type="text"]:focus { border-color: var(--ink); outline: none; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg label {
+  border: 2px solid var(--line); border-radius: 999px; padding: 6px 14px; font-weight: 700; cursor: pointer;
+  font-family: var(--f-mono); font-size: 14px;
+}
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg input:checked + span { color: var(--key-ink); }
+.seg label:has(input:checked) { background: var(--key); border-color: var(--ink); color: var(--key-ink); }
+.seg label:has(input:focus-visible) { outline: 3px solid var(--key); outline-offset: 2px; }
+.check { display: flex; gap: 10px; align-items: center; font-weight: 700; }
+.check input { width: 20px; height: 20px; accent-color: var(--ink); }
+.start-row { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+.start-row .note { color: var(--muted); font-size: 14px; }
+
+/* Layar soal */
+.hud { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.hud .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  font-family: var(--f-mono); font-size: 13px; font-weight: 700; background: var(--surface);
+  border: 2px solid var(--line); border-radius: 999px; padding: 4px 12px; font-variant-numeric: tabular-nums;
+}
+.chip.hot { border-color: var(--key); }
+.timer { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+.track { height: 12px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.fill { height: 100%; width: 100%; background: var(--good); border-radius: 99px; transform-origin: left; }
+.fill.warn { background: var(--key); }
+.fill.low { background: var(--bad); }
+.timer .num { font-family: var(--f-mono); font-weight: 700; font-size: 18px; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.qcard { background: var(--surface); border: 2px solid var(--line); border-radius: 16px; padding: 22px 20px; display: grid; gap: 10px; }
+.qcard h2 { font-size: clamp(20px, 4.4vw, 27px); font-weight: 700; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile {
+  display: flex; gap: 12px; align-items: center; text-align: left; min-height: 82px;
+  border: 0; border-radius: 14px; padding: 14px 16px; color: #fff; font-weight: 800; font-size: 17px; line-height: 1.3;
+  box-shadow: 0 5px 0 rgba(0,0,0,.28); transition: transform .1s, opacity .2s, box-shadow .1s, filter .2s;
+}
+.tile:hover:not(:disabled) { transform: translateY(-2px); }
+.tile:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.28); }
+.tile:disabled { cursor: default; }
+.tile .glyph {
+  flex: none; width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(255,255,255,.2); font-size: 16px;
+}
+.tile .txt { min-width: 0; }
+.tile .k { margin-left: auto; font-family: var(--f-mono); font-size: 12px; opacity: .7; flex: none; }
+.tile.c0 { background: var(--t1); } .tile.c1 { background: var(--t2); }
+.tile.c2 { background: var(--t3); } .tile.c3 { background: var(--t4); }
+.tile.dim { opacity: .3; filter: saturate(.4); }
+.tile.right { outline: 4px solid var(--good); outline-offset: 3px; }
+.tile.wrong { outline: 4px dashed var(--bad); outline-offset: 3px; }
+.tile .mark { margin-left: auto; font-size: 22px; flex: none; }
+
+.feedback { border-radius: 14px; padding: 16px 18px; display: grid; gap: 10px; border: 2px solid; }
+.feedback.ok { background: var(--good-soft); border-color: var(--good); }
+.feedback.no { background: var(--bad-soft); border-color: var(--bad); }
+.feedback .head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; }
+.feedback h3 { font-size: 22px; }
+.feedback.ok h3 { color: var(--good); } .feedback.no h3 { color: var(--bad); }
+.feedback .pts { font-family: var(--f-mono); font-weight: 700; }
+.feedback .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.feedback .hint { color: var(--muted); font-size: 13px; }
+
+/* Layar hasil */
+.result-top { display: grid; gap: 6px; }
+.result-top h1 { font-size: clamp(30px, 6vw, 44px); }
+.result-top p { color: var(--muted); }
+.big { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.big div { background: var(--surface); border: 2px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 2px; min-width: 0; }
+.big div:first-child { background: var(--key); border-color: var(--ink); color: var(--key-ink); }
+.big div:first-child span { color: var(--key-ink); opacity: .75; }
+.big strong { font-family: var(--f-mono); font-size: 24px; font-variant-numeric: tabular-nums; }
+.big span { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: 110px 1fr 56px; gap: 10px; align-items: center; font-weight: 700; font-size: 14px; }
+.bar .track { height: 14px; }
+.bar .fill { background: var(--ink); }
+.bar .v { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.review-head { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+.review { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.review li { background: var(--surface); border: 2px solid var(--line); border-left-width: 8px; border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; }
+.review li.ok { border-left-color: var(--good); }
+.review li.no { border-left-color: var(--bad); }
+.review .meta { display: flex; gap: 8px; align-items: center; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.review .q { font-weight: 800; }
+.review .ans { font-size: 14px; display: grid; gap: 2px; }
+.review .ans .you.ok { color: var(--good); } .review .ans .you.no { color: var(--bad); }
+.review .exp { font-size: 14px; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+@keyframes pop { from { transform: scale(.96); opacity: .4; } to { transform: none; opacity: 1; } }
+.pop { animation: pop .25s ease-out; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@media (max-width: 560px) {
+  .tiles { grid-template-columns: 1fr; }
+  .tile { min-height: 62px; font-size: 16px; }
+  .tile .k { display: none; }
+  .flow { grid-template-columns: 1fr; }
+  .flow .arrow { display: none; }
+  .flow.compact { grid-template-columns: repeat(3, 1fr); }
+  .flow.compact .store { grid-column: 1 / -1; }
+  .big { grid-template-columns: 1fr 1fr; }
+  .bar { grid-template-columns: 92px 1fr 48px; }
+}
+</style>
+
+<div class="wrap">
+
+  <!-- MULAI -->
+  <section id="scr-start" class="wrap" aria-labelledby="t-start">
+    <div class="hero">
+      <span class="eyebrow">Informatika · SMP Kelas VII–VIII</span>
+      <h1 id="t-start">Kuis Sistem Komputer: <em>Input</em>, Proses, Output</h1>
+      <p>20 soal tentang cara komputer menerima data, mengolahnya, menampilkan hasil, dan menyimpannya. Jawab cepat dan tepat untuk poin lebih besar.</p>
+    </div>
+
+    <div class="flow" aria-label="Alur kerja sistem komputer">
+      <div class="stage"><span class="eyebrow">1 · masuk</span><b>Input</b><small>Keyboard, mouse, scanner, mikrofon, webcam</small></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="stage"><span class="eyebrow">2 · olah</span><b>Proses</b><small>CPU (ALU + CU) dibantu RAM</small></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="stage"><span class="eyebrow">3 · keluar</span><b>Output</b><small>Monitor, printer, speaker, proyektor</small></div>
+      <div class="stage store"><b>Penyimpanan</b><small>Hard disk, SSD, flashdisk: menyimpan data sebelum dan sesudah diproses</small></div>
+    </div>
+
+    <form id="setup" class="panel" autocomplete="off">
+      <div class="field">
+        <label for="nama">Nama kamu</label>
+        <input type="text" id="nama" maxlength="30" placeholder="Contoh: Siti, kelas 7B">
+      </div>
+      <fieldset>
+        <legend>Waktu per soal</legend>
+        <div class="seg">
+          <label><input type="radio" name="secs" id="secs-15" value="15"><span>15 detik</span></label>
+          <label><input type="radio" name="secs" id="secs-20" value="20" checked><span>20 detik</span></label>
+          <label><input type="radio" name="secs" id="secs-30" value="30"><span>30 detik</span></label>
+        </div>
+      </fieldset>
+      <label class="check"><input type="checkbox" id="acak" checked> Acak urutan soal dan pilihan jawaban</label>
+      <div class="start-row">
+        <button class="btn" type="submit" id="btn-start">Mulai kuis</button>
+        <span class="note" id="best-note">Tekan <kbd>1</kbd>–<kbd>4</kbd> untuk menjawab, <kbd>Enter</kbd> untuk lanjut.</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- SOAL -->
+  <section id="scr-play" class="wrap" hidden aria-live="polite">
+    <div class="hud">
+      <span class="chip" id="hud-no">Soal 1/20</span>
+      <div class="stats">
+        <span class="chip" id="hud-streak">Beruntun 0</span>
+        <span class="chip" id="hud-score">0 poin</span>
+      </div>
+    </div>
+    <div class="timer" aria-hidden="true">
+      <div class="track"><div class="fill" id="tfill"></div></div>
+      <span class="num" id="tnum">20</span>
+    </div>
+    <div class="flow compact" id="mini" aria-hidden="true">
+      <div class="stage" data-c="input"><b>Input</b></div>
+      <span class="arrow">→</span>
+      <div class="stage" data-c="proses"><b>Proses</b></div>
+      <span class="arrow">→</span>
+      <div class="stage" data-c="output"><b>Output</b></div>
+      <div class="stage store" data-c="penyimpanan"><b>Penyimpanan</b></div>
+    </div>
+    <div class="qcard">
+      <span class="eyebrow" id="q-cat">Input</span>
+      <h2 id="q-text">…</h2>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div id="fb" hidden></div>
+  </section>
+
+  <!-- HASIL -->
+  <section id="scr-end" class="wrap" hidden>
+    <div class="result-top">
+      <span class="eyebrow" id="r-name">Hasil</span>
+      <h1 id="r-title">Bagus sekali!</h1>
+      <p id="r-sub"></p>
+    </div>
+    <div class="big">
+      <div><span>Skor</span><strong id="r-score">0</strong></div>
+      <div><span>Benar</span><strong id="r-correct">0/20</strong></div>
+      <div><span>Akurasi</span><strong id="r-acc">0%</strong></div>
+      <div><span>Beruntun terbaik</span><strong id="r-streak">0</strong></div>
+    </div>
+    <div class="panel">
+      <h3>Penguasaan per materi</h3>
+      <div class="bars" id="r-bars"></div>
+    </div>
+    <div class="review-head">
+      <h3>Pembahasan</h3>
+      <label class="check"><input type="checkbox" id="only-wrong"> Hanya yang salah</label>
+    </div>
+    <ol class="review" id="r-list"></ol>
+    <div class="actions">
+      <button class="btn" type="button" id="btn-again">Main lagi</button>
+      <button class="btn ghost" type="button" id="btn-home">Ganti nama / pengaturan</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const CAT = {
+  input: 'Input', proses: 'Proses', output: 'Output',
+  penyimpanan: 'Penyimpanan', konsep: 'Konsep dasar', io: 'Input & Output'
+};
+
+// ans = indeks jawaban benar pada opts
+const BANK = [
+  { c: 'konsep', q: 'Urutan kerja sistem komputer yang benar adalah …',
+    o: ['Input → Proses → Output', 'Proses → Input → Output', 'Output → Proses → Input', 'Input → Output → Proses'], a: 0,
+    e: 'Data dimasukkan (input), diolah oleh CPU (proses), lalu hasilnya ditampilkan (output). Penyimpanan bisa terlibat di setiap tahap.' },
+  { c: 'input', q: 'Perangkat yang berfungsi memasukkan data atau perintah ke dalam komputer disebut …',
+    o: ['Perangkat input', 'Perangkat output', 'Perangkat proses', 'Perangkat jaringan'], a: 0,
+    e: 'Perangkat input (masukan) adalah jalan masuk data dan perintah dari pengguna ke komputer.' },
+  { c: 'input', q: 'Manakah yang termasuk perangkat input?',
+    o: ['Keyboard', 'Monitor', 'Printer', 'Speaker'], a: 0,
+    e: 'Keyboard dipakai untuk mengetik huruf, angka, dan perintah. Monitor, printer, dan speaker adalah perangkat output.' },
+  { c: 'input', q: 'Fungsi utama scanner adalah …',
+    o: ['Mengubah dokumen atau gambar cetak menjadi data digital', 'Mencetak dokumen ke kertas', 'Menampilkan gambar ke layar lebar', 'Mengeraskan suara dari komputer'], a: 0,
+    e: 'Scanner memindai kertas atau foto lalu mengirimkannya ke komputer dalam bentuk file digital.' },
+  { c: 'input', q: 'Perangkat input yang digunakan untuk menggerakkan pointer (kursor) di layar adalah …',
+    o: ['Mouse', 'Plotter', 'Proyektor', 'Headphone'], a: 0,
+    e: 'Mouse menggerakkan pointer dan memberi perintah lewat klik. Touchpad pada laptop punya fungsi yang sama.' },
+  { c: 'input', q: 'Kasir supermarket membaca harga barang dengan menyorotkan alat ke kode garis-garis pada kemasan. Alat itu adalah …',
+    o: ['Barcode reader', 'Webcam', 'Joystick', 'Printer struk'], a: 0,
+    e: 'Barcode reader membaca kode batang (barcode) lalu mengirim datanya ke komputer kasir.' },
+  { c: 'input', q: 'Saat melakukan video call, perangkat yang menangkap gambar wajahmu adalah …',
+    o: ['Webcam', 'Speaker', 'Monitor', 'Proyektor'], a: 0,
+    e: 'Webcam adalah kamera yang memasukkan gambar atau video ke komputer, jadi termasuk perangkat input.' },
+  { c: 'output', q: 'Monitor termasuk perangkat output karena …',
+    o: ['Menampilkan hasil pengolahan data dalam bentuk visual', 'Memasukkan data ke komputer', 'Mengolah data menjadi informasi', 'Menyimpan data secara permanen'], a: 0,
+    e: 'Monitor menampilkan teks, gambar, dan video hasil olahan komputer. Hasil di layar disebut soft copy.' },
+  { c: 'output', q: 'Perangkat output yang menghasilkan hard copy (hasil cetak di kertas) adalah …',
+    o: ['Printer', 'Monitor', 'Speaker', 'Proyektor'], a: 0,
+    e: 'Printer mencetak hasil ke kertas. Hasil yang bisa dipegang ini disebut hard copy.' },
+  { c: 'output', q: 'Speaker mengeluarkan hasil olahan komputer dalam bentuk …',
+    o: ['Suara (audio)', 'Gambar', 'Tulisan di kertas', 'Getaran listrik'], a: 0,
+    e: 'Speaker mengubah sinyal audio dari komputer menjadi suara yang bisa kita dengar.' },
+  { c: 'output', q: 'Guru menampilkan materi dari laptop ke layar besar di depan kelas. Perangkat yang digunakan adalah …',
+    o: ['Proyektor', 'Scanner', 'Mikrofon', 'Keyboard'], a: 0,
+    e: 'Proyektor (LCD projector) memproyeksikan tampilan komputer ke layar atau dinding yang lebar.' },
+  { c: 'proses', q: 'Komponen yang sering disebut sebagai "otak" komputer adalah …',
+    o: ['CPU (prosesor)', 'Monitor', 'Hard disk', 'Keyboard'], a: 0,
+    e: 'CPU (Central Processing Unit) menjalankan instruksi dan mengolah semua data, mirip otak pada manusia.' },
+  { c: 'proses', q: 'Bagian CPU yang melakukan perhitungan aritmetika (+, −, ×, ÷) dan operasi logika adalah …',
+    o: ['ALU (Arithmetic Logic Unit)', 'CU (Control Unit)', 'RAM', 'Power supply'], a: 0,
+    e: 'ALU bertugas menghitung dan membandingkan data, misalnya memeriksa apakah 5 lebih besar dari 3.' },
+  { c: 'proses', q: 'Tugas Control Unit (CU) pada CPU adalah …',
+    o: ['Mengatur dan mengendalikan kerja seluruh bagian komputer', 'Mencetak hasil ke kertas', 'Menyimpan file secara permanen', 'Mengubah suara menjadi data'], a: 0,
+    e: 'CU seperti pengatur lalu lintas: ia membaca instruksi dan memberi perintah ke ALU, memori, dan perangkat lain.' },
+  { c: 'proses', q: 'Kecepatan prosesor biasanya dinyatakan dalam satuan …',
+    o: ['GHz (gigahertz)', 'GB (gigabyte)', 'dpi (dots per inch)', 'Watt'], a: 0,
+    e: 'GHz menyatakan berapa miliar siklus per detik yang bisa dijalankan prosesor. GB adalah satuan kapasitas memori.' },
+  { c: 'penyimpanan', q: 'RAM bersifat volatile. Artinya …',
+    o: ['Data di dalamnya hilang ketika komputer dimatikan', 'Data tersimpan selamanya', 'Hanya bisa dibaca, tidak bisa ditulis', 'Bisa dilepas dan dibawa ke mana-mana'], a: 0,
+    e: 'RAM adalah memori kerja sementara. Begitu listrik padam, isinya hilang. Karena itu file perlu disimpan (save) ke hard disk atau SSD.' },
+  { c: 'penyimpanan', q: 'Hard disk, SSD, dan flashdisk termasuk perangkat …',
+    o: ['Penyimpanan', 'Input', 'Output', 'Pemrosesan'], a: 0,
+    e: 'Ketiganya menyimpan data secara permanen, bahkan saat komputer dimatikan.' },
+  { c: 'io', q: 'Layar sentuh (touchscreen) pada ponsel dapat berfungsi sebagai perangkat input sekaligus output.',
+    o: ['Benar', 'Salah'], a: 0, tf: true,
+    e: 'Benar. Layar sentuh menerima sentuhan jari (input) dan menampilkan gambar (output).' },
+  { c: 'output', q: 'Printer termasuk perangkat input.',
+    o: ['Benar', 'Salah'], a: 1, tf: true,
+    e: 'Salah. Printer mengeluarkan hasil olahan ke kertas, jadi termasuk perangkat output.' },
+  { c: 'konsep', q: 'Budi mengetik tugas dengan keyboard, komputer mengolahnya, lalu tugas dicetak dengan printer. Dalam kegiatan itu, printer berperan pada tahap …',
+    o: ['Output', 'Input', 'Proses', 'Penyimpanan'], a: 0,
+    e: 'Keyboard = input, CPU = proses, printer = output karena mengeluarkan hasil akhirnya.' },
+  { c: 'konsep', q: 'Data yang sudah diolah oleh komputer sehingga bermakna dan berguna disebut …',
+    o: ['Informasi', 'Instruksi', 'Perangkat', 'Sinyal'], a: 0,
+    e: 'Data mentah masuk lewat input, lalu diproses menjadi informasi yang bisa dipahami pengguna.' },
+];
+const QUIZ_LEN = 20;
+const GLYPH = ['▲', '◆', '●', '■'];
+
+const $ = id => document.getElementById(id);
+let S = null;          // keadaan permainan
+let timer = null;      // id requestAnimationFrame
+let t0 = 0, remaining = 0;
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function store(key, val) {
+  try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; }
+}
+function show(id) {
+  for (const s of ['scr-start', 'scr-play', 'scr-end']) $(s).hidden = s !== id;
+  window.scrollTo({ top: 0 });
+}
+
+function newGame(name, secs, rand) {
+  let qs = BANK.map((_, i) => i);
+  if (rand) qs = shuffle(qs);
+  qs = qs.slice(0, QUIZ_LEN);
+  const order = qs.map(qi => {
+    const n = BANK[qi].o.length;
+    const idx = [...Array(n).keys()];
+    return { qi, opts: rand && !BANK[qi].tf ? shuffle(idx) : idx };
+  });
+  S = { screen: 'play', name, secs, rand, order, idx: 0, score: 0, streak: 0, bestStreak: 0, log: [] };
+  show('scr-play');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const item = S.order[S.idx], q = BANK[item.qi];
+  $('hud-no').textContent = `Soal ${S.idx + 1}/${S.order.length}`;
+  updateHud();
+  $('q-cat').textContent = CAT[q.c];
+  $('q-text').textContent = q.q;
+  const lit = q.c === 'konsep' ? ['input', 'proses', 'output', 'penyimpanan'] : q.c === 'io' ? ['input', 'output'] : [q.c];
+  document.querySelectorAll('#mini .stage').forEach(el => el.classList.toggle('on', lit.includes(el.dataset.c)));
+
+  const tiles = $('tiles');
+  tiles.innerHTML = '';
+  item.opts.forEach((oi, pos) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `tile c${q.tf ? (oi === 0 ? 2 : 0) : pos}`;
+    b.dataset.oi = oi;
+    b.innerHTML = `<span class="glyph" aria-hidden="true">${GLYPH[pos]}</span><span class="txt"></span><span class="k" aria-hidden="true">${pos + 1}</span>`;
+    b.querySelector('.txt').textContent = q.o[oi];
+    b.addEventListener('click', () => answer(oi));
+    tiles.appendChild(b);
+  });
+  tiles.classList.remove('pop'); void tiles.offsetWidth; tiles.classList.add('pop');
+  $('fb').hidden = true;
+  startTimer();
+}
+
+function updateHud() {
+  $('hud-score').textContent = `${S.score.toLocaleString('id-ID')} poin`;
+  $('hud-streak').textContent = `Beruntun ${S.streak}`;
+  $('hud-streak').classList.toggle('hot', S.streak >= 3);
+}
+
+function startTimer() {
+  cancelAnimationFrame(timer);
+  t0 = performance.now();
+  const fill = $('tfill'), num = $('tnum');
+  const tick = now => {
+    remaining = Math.max(0, S.secs - (now - t0) / 1000);
+    const r = remaining / S.secs;
+    fill.style.transform = `scaleX(${r})`;
+    fill.classList.toggle('warn', r <= .5 && r > .25);
+    fill.classList.toggle('low', r <= .25);
+    num.textContent = Math.ceil(remaining);
+    if (remaining <= 0) return answer(null);
+    timer = requestAnimationFrame(tick);
+  };
+  timer = requestAnimationFrame(tick);
+}
+
+function answer(oi) {
+  if (!S || S.screen !== 'play' || !$('fb').hidden) return;
+  cancelAnimationFrame(timer);
+  const item = S.order[S.idx], q = BANK[item.qi];
+  const ok = oi === q.a;
+  let pts = 0, bonus = 0;
+  if (ok) {
+    S.streak++;
+    S.bestStreak = Math.max(S.bestStreak, S.streak);
+    pts = Math.round(500 + 500 * (remaining / S.secs));
+    bonus = Math.min(300, (S.streak - 1) * 100);
+    S.score += pts + bonus;
+  } else {
+    S.streak = 0;
+  }
+  S.log.push({ qi: item.qi, pick: oi, ok, pts: pts + bonus });
+  updateHud();
+
+  document.querySelectorAll('#tiles .tile').forEach(t => {
+    const v = Number(t.dataset.oi);
+    t.disabled = true;
+    t.querySelector('.k').remove();
+    if (v === q.a) { t.classList.add('right'); t.insertAdjacentHTML('beforeend', '<span class="mark" aria-label="jawaban benar">✓</span>'); }
+    else if (v === oi) { t.classList.add('wrong'); t.insertAdjacentHTML('beforeend', '<span class="mark" aria-label="jawabanmu">✗</span>'); }
+    else t.classList.add('dim');
+  });
+
+  const last = S.idx === S.order.length - 1;
+  const fb = $('fb');
+  fb.className = `feedback pop ${ok ? 'ok' : 'no'}`;
+  const title = ok ? (S.streak >= 3 ? `Benar! ${S.streak}× beruntun` : 'Benar!') : (oi === null ? 'Waktu habis' : 'Belum tepat');
+  const ptsText = ok ? `+${pts}${bonus ? ` +${bonus} bonus` : ''}` : '+0';
+  fb.innerHTML = `
+    <div class="head"><h3></h3><span class="pts">${ptsText}</span></div>
+    <p class="exp"></p>
+    <div class="row">
+      <button class="btn" type="button" id="btn-next">${last ? 'Lihat hasil' : 'Soal berikutnya'}</button>
+      <span class="hint">atau tekan <kbd>Enter</kbd></span>
+    </div>`;
+  fb.querySelector('h3').textContent = title;
+  fb.querySelector('.exp').textContent = (ok ? '' : `Jawaban yang benar: ${q.o[q.a]}. `) + q.e;
+  fb.hidden = false;
+  $('btn-next').addEventListener('click', next);
+  $('btn-next').focus({ preventScroll: true });
+  fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function next() {
+  if (S.idx < S.order.length - 1) { S.idx++; renderQuestion(); }
+  else finish();
+}
+
+function finish() {
+  S.screen = 'end';
+  const n = S.log.length, correct = S.log.filter(l => l.ok).length, acc = Math.round(correct / n * 100);
+  $('r-name').textContent = S.name ? `Hasil · ${S.name}` : 'Hasil';
+  $('r-title').textContent = acc >= 90 ? 'Luar biasa!' : acc >= 75 ? 'Bagus sekali!' : acc >= 60 ? 'Cukup baik, terus berlatih!' : 'Ayo pelajari lagi materinya!';
+  const prev = Number(store('kuis-ipo-best')) || 0;
+  let sub = `Kamu menjawab ${correct} dari ${n} soal dengan benar.`;
+  if (S.score > prev) { store('kuis-ipo-best', String(S.score)); sub += prev ? ` Rekor baru! Sebelumnya ${prev.toLocaleString('id-ID')} poin.` : ''; }
+  else sub += ` Rekor terbaikmu di perangkat ini: ${prev.toLocaleString('id-ID')} poin.`;
+  $('r-sub').textContent = sub;
+  $('r-score').textContent = S.score.toLocaleString('id-ID');
+  $('r-correct').textContent = `${correct}/${n}`;
+  $('r-acc').textContent = `${acc}%`;
+  $('r-streak').textContent = S.bestStreak;
+
+  // Soal "io" dihitung ke Input dan Output
+  const groups = { input: [0, 0], proses: [0, 0], output: [0, 0], penyimpanan: [0, 0], konsep: [0, 0] };
+  for (const l of S.log) {
+    const c = BANK[l.qi].c;
+    for (const g of c === 'io' ? ['input', 'output'] : [c]) { groups[g][1]++; if (l.ok) groups[g][0]++; }
+  }
+  $('r-bars').innerHTML = Object.entries(groups).filter(([, v]) => v[1]).map(([k, [ok, tot]]) => `
+    <div class="bar"><span>${CAT[k]}</span><div class="track"><div class="fill" style="width:${ok / tot * 100}%"></div></div><span class="v">${ok}/${tot}</span></div>`).join('');
+
+  renderReview();
+  show('scr-end');
+  updateBestNote();
+}
+
+function renderReview() {
+  const onlyWrong = $('only-wrong').checked;
+  const list = $('r-list');
+  list.innerHTML = '';
+  S.log.forEach((l, i) => {
+    if (onlyWrong && l.ok) return;
+    const q = BANK[l.qi];
+    const li = document.createElement('li');
+    li.className = l.ok ? 'ok' : 'no';
+    li.innerHTML = `
+      <div class="meta"><span>No. ${i + 1}</span><span>·</span><span>${CAT[q.c]}</span><span>·</span><span>${l.ok ? '+' + l.pts : '0'} poin</span></div>
+      <p class="q"></p>
+      <div class="ans"><span class="you ${l.ok ? 'ok' : 'no'}"></span>${l.ok ? '' : '<span class="key"></span>'}</div>
+      <p class="exp"></p>`;
+    li.querySelector('.q').textContent = q.q;
+    li.querySelector('.you').textContent = `Jawabanmu: ${l.pick === null ? '(tidak menjawab, waktu habis)' : q.o[l.pick]} ${l.ok ? '✓' : '✗'}`;
+    if (!l.ok) li.querySelector('.key').textContent = `Kunci: ${q.o[q.a]}`;
+    li.querySelector('.exp').textContent = q.e;
+    list.appendChild(li);
+  });
+  if (!list.children.length) list.innerHTML = '<li class="ok"><p class="q">Semua jawabanmu benar. Tidak ada yang perlu dibahas ulang.</p></li>';
+}
+
+function updateBestNote() {
+  const best = Number(store('kuis-ipo-best')) || 0;
+  if (best) $('best-note').innerHTML = `Rekor terbaik di perangkat ini: <b class="mono">${best.toLocaleString('id-ID')}</b> poin. Tekan <kbd>1</kbd>–<kbd>4</kbd> untuk menjawab.`;
+}
+
+// Event
+$('setup').addEventListener('submit', e => {
+  e.preventDefault();
+  const secs = Number(document.querySelector('input[name="secs"]:checked').value);
+  const name = $('nama').value.trim();
+  store('kuis-ipo-nama', name);
+  newGame(name, secs, $('acak').checked);
+});
+$('btn-again').addEventListener('click', () => newGame(S.name, S.secs, S.rand));
+$('btn-home').addEventListener('click', () => { S = null; show('scr-start'); $('nama').focus(); });
+$('only-wrong').addEventListener('change', renderReview);
+document.addEventListener('keydown', e => {
+  if (!S || S.screen !== 'play' || e.target.tagName === 'INPUT') return;
+  if ($('fb').hidden) {
+    const n = Number(e.key);
+    const tiles = document.querySelectorAll('#tiles .tile');
+    if (n >= 1 && n <= tiles.length) tiles[n - 1].click();
+  } else if (e.key === 'Enter' && document.activeElement?.id !== 'btn-next') {
+    next();
+  }
+});
+
+// Pulihkan permainan bila halaman diperbarui saat sedang dimainkan
+function start(data) {
+  const savedName = store('kuis-ipo-nama');
+  if (savedName) $('nama').value = savedName;
+  updateBestNote();
+  if (data && data.S) {
+    S = data.S;
+    if (S.screen === 'end') { finish(); return; }
+    S.order.length = Math.max(S.order.length, S.log.length);
+    S.idx = S.log.length;
+    if (S.idx >= S.order.length) { finish(); return; }
+    show('scr-play'); renderQuestion();
+  }
+}
+window.claude?.hot?.snapshot?.(() => ({ S }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
